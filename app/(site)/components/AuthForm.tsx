@@ -3,15 +3,27 @@
 import Button from "@/app/components/Button";
 import Input from "@/app/components/inputs/Input";
 import { BsGithub, BsGoogle } from "react-icons/bs"
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { FieldValues, SubmitHandler, useForm } from "react-hook-form";
 import AuthSocialButton from "./AuthSocialButton";
+import axios from "axios";
+import toast from "react-hot-toast";
+import { signIn, useSession } from "next-auth/react"
+import { Irish_Grover } from "next/font/google";
+import { useRouter } from "next/navigation";
 
 type Variant = 'LOGIN' | 'REGISTER';
 
 const AuthForm = () => {
+    const session = useSession()
+    const router = useRouter()
     const [variant, setVariant] = useState<Variant>('LOGIN')
     const [isLoading, setIsLoading] = useState(false)
+    useEffect(() => {
+        if (session?.status === 'authenticated') {
+            router.push('/users')
+        }
+    }, [session?.status])
     const toggleVariant = useCallback(() => {
         if (variant == 'LOGIN') {
             setVariant('REGISTER')
@@ -30,16 +42,36 @@ const AuthForm = () => {
     const onSubmit: SubmitHandler<FieldValues> = (data) => {
         setIsLoading(true)
         if (variant === 'REGISTER') {
-            //Axios Register
+            axios.post('/api/register', data).catch(() => toast.error('Something went wrong')).finally(() => setIsLoading(false))
         }
         if (variant === 'LOGIN') {
-            //Axios Login
+            signIn('credentials', {
+                ...data,
+                redirect: false,
+            }).then((callback) => {
+                if (callback?.error) {
+                    toast.error("Invalid credentials")
+                }
+
+                if (callback?.ok && !callback.error) {
+                    toast.success("Logged in!")
+                    router.push('/users')
+                }
+            }).finally(() => setIsLoading(false))
         }
     }
     const socialAction = (action: string) => {
         setIsLoading(true)
+        signIn(action, { redirect: false }).then((callback) => {
+            if (callback?.error) {
+                toast.error("Invalid credentials")
+            }
 
-        // NextAuth Social Sign in
+            if (callback?.ok && !callback.error) {
+                toast.success("Logged in!")
+                router.push('/users')
+            }
+        }).finally(() => setIsLoading(false))
     }
     return (
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
